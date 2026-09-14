@@ -1,7 +1,7 @@
 import os
 
 from preProcess import preProcess
-from modelTraining import modelTraining, MODEL_REGISTRY
+from modelTraining import modelTraining
 
 
 FEATURES = [
@@ -33,27 +33,44 @@ def main():
     print("NASA KOI EXOPLANET CLASSIFICATION")
     print("=" * 70)
 
+    # --------------------------------------------------------
     # 1. Input dataset
-    input_name = input("\nEnter input data file name: ").strip()
+    # --------------------------------------------------------
+
+    input_name = input(
+        "\nEnter input data file name: "
+    ).strip()
 
     if not input_name:
-        raise ValueError("Input data file name cannot be empty.")
+        raise ValueError(
+            "Input data file name cannot be empty."
+        )
 
-    input_file = os.path.join(DATASETS_DIR, input_name)
+    input_file = os.path.join(
+        DATASETS_DIR,
+        input_name
+    )
 
     if not os.path.isfile(input_file):
         raise FileNotFoundError(
             f"Input dataset not found:\n{input_file}"
         )
 
+    # --------------------------------------------------------
     # 2. Optional preprocessing
+    # --------------------------------------------------------
+
     processed_name = input(
         "Enter output processed data file name "
         "(leave blank if already processed): "
     ).strip()
 
     if processed_name:
-        processed_base = os.path.splitext(processed_name)[0]
+
+        processed_base = os.path.splitext(
+            processed_name
+        )[0]
+
         processed_file = os.path.join(
             DATASETS_DIR,
             processed_base + ".csv"
@@ -69,68 +86,68 @@ def main():
         )
 
         training_file = processed_file
-        print(f"Processed dataset saved to: {processed_file}")
+
+        print(
+            f"Processed dataset saved to: "
+            f"{processed_file}"
+        )
+
     else:
         training_file = input_file
 
-    # 3. Select algorithm
-    print("\nAvailable ML algorithms:")
+    # --------------------------------------------------------
+    # 3. Classification threshold
+    # --------------------------------------------------------
 
-    for code, info in MODEL_REGISTRY.items():
-        print(f"  {code:<5} - {info['name']}")
+    threshold_input = input(
+        "\nEnter classification threshold "
+        "(default 0.50): "
+    ).strip()
 
-    model_name = input("\nEnter ML algorithm: ").strip().upper()
+    if threshold_input:
 
-    if model_name not in MODEL_REGISTRY:
-        available = ", ".join(MODEL_REGISTRY.keys())
-        raise ValueError(
-            f"Invalid algorithm. Choose one of: {available}"
-        )
-
-    # 4. Determine output filenames
-    if model_name == "KNN":
-        model_file = None
-
-        performance_name = input(
-            "\nEnter performance file name: "
-        ).strip()
-
-        if not performance_name:
+        try:
+            threshold = float(threshold_input)
+        except ValueError:
             raise ValueError(
-                "Performance file name cannot be empty."
+                "Threshold must be a valid number."
             )
-
-        performance_base = os.path.splitext(performance_name)[0]
-
-        performance_file = os.path.join(
-            PERFORMANCE_DIR,
-            performance_base + ".json"
-        )
 
     else:
-        result_name = input(
-            "\nEnter model file name: "
-        ).strip()
+        threshold = 0.50
 
-        if not result_name:
-            raise ValueError(
-                "Model file name cannot be empty."
-            )
 
-        base_name = os.path.splitext(result_name)[0]
+    # --------------------------------------------------------
+    # 4. Output Files
+    # --------------------------------------------------------
 
-        model_file = os.path.join(
-            MODELS_DIR,
-            base_name + ".pkl"
+    result_name = input(
+        "\nEnter model file name: "
+    ).strip()
+
+    if not result_name:
+        raise ValueError(
+            "Model file name cannot be empty."
         )
 
-        performance_file = os.path.join(
-            PERFORMANCE_DIR,
-            base_name + "_perf.json"
-        )
+    base_name = os.path.splitext(result_name)[0]
 
-    # 5. Run model training / evaluation
-    print("\nRunning model evaluation...")
+    model_file = os.path.join(
+        MODELS_DIR,
+        base_name + ".pkl"
+    )
+
+    performance_file = os.path.join(
+        PERFORMANCE_DIR,
+        base_name + "_perf.json"
+    )
+
+
+    # --------------------------------------------------------
+    # 5. Train and evaluate Random Forest
+    # --------------------------------------------------------
+
+    print("\nRunning Random Forest evaluation...")
 
     modelTraining(
         training_file,
@@ -138,15 +155,21 @@ def main():
         performance_file,
         FEATURES,
         TARGET,
-        model_name
+        threshold
     )
 
-    print(f"\nPerformance report saved to: {performance_file}")
+    print(
+        f"\nPerformance report saved to: "
+        f"{performance_file}"
+    )
 
-    if model_file is not None:
-        print(f"Model saved to: {model_file}")
+    print(
+        f"Model saved to: {model_file}"
+    )
 
-    print("\nProject execution completed successfully.")
+    print(
+        "\nProject execution completed successfully."
+    )
 
 
 if __name__ == "__main__":
