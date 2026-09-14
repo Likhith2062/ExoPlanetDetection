@@ -4,8 +4,10 @@ import time
 
 import joblib
 import pandas as pd
+import numpy as np
 
 from sklearn.model_selection import StratifiedKFold, cross_validate
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -19,6 +21,7 @@ from sklearn.ensemble import (
     AdaBoostClassifier,
     ExtraTreesClassifier
 )
+
 
 
 def create_lr():
@@ -130,43 +133,151 @@ def modelTraining(
         "roc_auc": "roc_auc"
     }
 
-    cv_start = time.perf_counter()
+    if model_name == "RF":
 
-    cv_results = cross_validate(
-        estimator,
-        X,
-        y,
-        cv=cv,
-        scoring=scoring,
-        return_train_score=False,
-        n_jobs=-1
-    )
+        thresholds = [
+            round(x, 2)
+            for x in list(
+                np.arange(0.30, 0.71, 0.05)
+            )
+        ]
 
-    cv_end = time.perf_counter()
+        threshold_predictions = {
+            threshold: []
+            for threshold in thresholds
+        }
 
-    performance = {
-        "model": model_info["name"],
-        "model_code": model_name,
-        "cross_validation": {
-            "method": "10-fold Stratified Cross Validation",
-            "folds": 10,
-            "random_state": 42
-        },
-        "metrics": {
-            metric: {
-                "mean": float(cv_results[f"test_{metric}"].mean()),
-                "std": float(cv_results[f"test_{metric}"].std())
+        threshold_actual = []
+
+        cv_start = time.perf_counter()
+
+        for train_index, test_index in cv.split(X, y):
+
+            X_train = X.iloc[train_index]
+            X_test = X.iloc[test_index]
+
+            y_train = y.iloc[train_index]
+            y_test = y.iloc[test_index]
+
+            fold_model = create_model(model_name)
+
+            fold_model.fit(X_train, y_train)
+
+            probabilities = fold_model.predict_proba(X_test)[:, 1]
+
+            threshold_actual.extend(y_test.tolist())
+
+            for threshold in thresholds:
+
+                predictions = (
+                    probabilities >= threshold
+                ).astype(int)
+
+                threshold_predictions[threshold].extend(
+                    predictions.tolist()
+                )
+
+        cv_end = time.perf_counter()
+
+        threshold_results = {}
+
+        for threshold in thresholds:
+
+            predictions = threshold_predictions[threshold]
+
+            threshold_results[str(threshold)] = {
+                "accuracy": float(
+                    accuracy_score(
+                        threshold_actual,
+                        predictions
+                    )
+                ),
+                "precision": float(
+                    precision_score(
+                        threshold_actual,
+                        predictions,
+                        zero_division=0
+                    )
+                ),
+                "recall": float(
+                    recall_score(
+                        threshold_actual,
+                        predictions,
+                        zero_division=0
+                    )
+                ),
+                "f1": float(
+                    f1_score(
+                        threshold_actual,
+                        predictions,
+                        zero_division=0
+                    )
+                )
             }
-            for metric in scoring
-        },
-        "fold_scores": {
-            metric: [
-                float(x) for x in cv_results[f"test_{metric}"]
-            ]
-            for metric in scoring
-        },
-        "cross_validation_time_seconds": cv_end - cv_start
-    }
+
+        performance = {
+            "model": model_info["name"],
+            "model_code": model_name,
+            "cross_validation": {
+                "method": "10-fold Stratified Cross Validation",
+                "folds": 10,
+                "random_state": 42
+            },
+            "threshold_tuning": {
+                "thresholds_tested": thresholds,
+                "results": threshold_results
+            },
+            "cross_validation_time_seconds": (
+                cv_end - cv_start
+            )
+        }
+
+    else:
+
+        cv_start = time.perf_counter()
+
+        cv_results = cross_validate(
+            estimator,
+            X,
+            y,
+            cv=cv,
+            scoring=scoring,
+            return_train_score=False,
+            n_jobs=-1
+        )
+
+        cv_end = time.perf_counter()
+
+        performance = {
+            "model": model_info["name"],
+            "model_code": model_name,
+            "cross_validation": {
+                "method": "10-fold Stratified Cross Validation",
+                "folds": 10,
+                "random_state": 42
+            },
+            "metrics": {
+                metric: {
+                    "mean": float(
+                        cv_results[f"test_{metric}"].mean()
+                    ),
+                    "std": float(
+                        cv_results[f"test_{metric}"].std()
+                    )
+                }
+                for metric in scoring
+            },
+            "fold_scores": {
+                metric: [
+                    float(x)
+                    for x in cv_results[f"test_{metric}"]
+                ]
+                for metric in scoring
+            },
+            "cross_validation_time_seconds": (
+                cv_end - cv_start
+            )
+        }
 
     if model_info["save_model"]:
         training_start = time.perf_counter()
