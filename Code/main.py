@@ -101,7 +101,7 @@ def main():
 
     threshold_input = input(
         "\nEnter classification threshold "
-        "(default 0.50): "
+        "(default 0.46): "
     ).strip()
 
     if threshold_input:
@@ -114,7 +114,7 @@ def main():
             )
 
     else:
-        threshold = 0.50
+        threshold = 0.46
 
 
     # --------------------------------------------------------

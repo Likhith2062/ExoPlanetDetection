@@ -16,9 +16,42 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import StratifiedKFold
 
+#--------------------------------------------------------
+# Parameters for Random Forest Classifier
+#--------------------------------------------------------
+#def create_random_forest(
+#    n_estimators=100,
+#    max_depth=None,
+#    min_samples_split=2,
+#    min_samples_leaf=1,
+#    max_features="sqrt",
+#    criterion="gini",
+#    class_weight=None,
+#    bootstrap=True,
+#    max_samples=None
+#):
+#    return RandomForestClassifier(
+#       n_estimators=n_estimators,
+#       max_depth=max_depth,
+#        min_samples_split=min_samples_split,
+#        min_samples_leaf=min_samples_leaf,
+#        max_features=max_features,
+#        criterion=criterion,
+#        class_weight=class_weight,
+#        bootstrap=bootstrap,
+#        max_samples=max_samples,
+#        random_state=42,
+#        n_jobs=1
+#    )
 
-def create_random_forest():
+
+def create_random_forest(
+    n_estimators=165,
+    max_depth=50,
+):
     return RandomForestClassifier(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
         random_state=42,
         n_jobs=1
     )
@@ -167,6 +200,11 @@ def modelTraining(
         "model": "Random Forest",
         "model_code": "RF",
         "threshold": threshold,
+
+        "hyperparameters": {
+            parameter: value
+            for parameter, value in create_random_forest().get_params().items()
+        },
 
         "cross_validation": {
             "method": "10-fold Stratified Cross Validation",
