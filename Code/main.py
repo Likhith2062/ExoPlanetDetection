@@ -1,12 +1,8 @@
 import os
 
 from preProcess import preProcess
-from modelTraining import modelTraining
+from modelTraining import modelTraining, MODEL_REGISTRY
 
-
-# ============================================================
-# PROJECT-WIDE FEATURE / TARGET DEFINITION
-# ============================================================
 
 FEATURES = [
     "koi_depth",
@@ -23,10 +19,6 @@ FEATURES = [
 TARGET = "koi_disposition"
 
 
-# ============================================================
-# DIRECTORY CONFIGURATION
-# ============================================================
-
 CODE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(CODE_DIR)
 
@@ -41,11 +33,11 @@ def main():
     print("NASA KOI EXOPLANET CLASSIFICATION")
     print("=" * 70)
 
-    # --------------------------------------------------------
     # 1. Input dataset
-    # --------------------------------------------------------
-
     input_name = input("\nEnter input data file name: ").strip()
+
+    if not input_name:
+        raise ValueError("Input data file name cannot be empty.")
 
     input_file = os.path.join(DATASETS_DIR, input_name)
 
@@ -54,10 +46,7 @@ def main():
             f"Input dataset not found:\n{input_file}"
         )
 
-    # --------------------------------------------------------
     # 2. Optional preprocessing
-    # --------------------------------------------------------
-
     processed_name = input(
         "Enter output processed data file name "
         "(leave blank if already processed): "
@@ -81,35 +70,25 @@ def main():
 
         training_file = processed_file
         print(f"Processed dataset saved to: {processed_file}")
-
     else:
         training_file = input_file
 
-    # --------------------------------------------------------
     # 3. Select algorithm
-    # --------------------------------------------------------
-
     print("\nAvailable ML algorithms:")
-    print("  LR   - Logistic Regression")
-    print("  CART - CART Decision Tree")
-    print("  SVM  - Support Vector Machine")
-    print("  KNN  - K-Nearest Neighbours")
-    print("  NB   - Gaussian Naive Bayes")
+
+    for code, info in MODEL_REGISTRY.items():
+        print(f"  {code:<5} - {info['name']}")
 
     model_name = input("\nEnter ML algorithm: ").strip().upper()
 
-    if model_name not in ["LR", "CART", "SVM", "KNN", "NB"]:
+    if model_name not in MODEL_REGISTRY:
+        available = ", ".join(MODEL_REGISTRY.keys())
         raise ValueError(
-            "Invalid algorithm. Choose LR, CART, SVM, KNN or NB."
+            f"Invalid algorithm. Choose one of: {available}"
         )
 
-    # --------------------------------------------------------
     # 4. Determine output filenames
-    # --------------------------------------------------------
-
     if model_name == "KNN":
-
-        # KNN has no separately saved model.
         model_file = None
 
         performance_name = input(
@@ -129,8 +108,6 @@ def main():
         )
 
     else:
-
-        # Ask for model filename for trainable models.
         result_name = input(
             "\nEnter model file name: "
         ).strip()
@@ -147,15 +124,12 @@ def main():
             base_name + ".pkl"
         )
 
-        # Performance file automatically gets the same base name.
         performance_file = os.path.join(
             PERFORMANCE_DIR,
             base_name + "_perf.json"
         )
-    # --------------------------------------------------------
-    # 5. Run model module
-    # --------------------------------------------------------
 
+    # 5. Run model training / evaluation
     print("\nRunning model evaluation...")
 
     modelTraining(

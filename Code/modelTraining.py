@@ -1,4 +1,5 @@
 import json
+import os
 import time
 
 import joblib
@@ -7,12 +8,87 @@ import pandas as pd
 from sklearn.model_selection import StratifiedKFold, cross_validate
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import (
+    RandomForestClassifier,
+    GradientBoostingClassifier,
+    AdaBoostClassifier,
+    ExtraTreesClassifier
+)
+
+
+def create_lr():
+    return Pipeline([
+        ("scaler", StandardScaler()),
+        ("model", LogisticRegression(max_iter=1000, random_state=42))
+    ])
+
+
+def create_cart():
+    return DecisionTreeClassifier(criterion="gini", random_state=42)
+
+
+def create_svm():
+    return Pipeline([
+        ("scaler", StandardScaler()),
+        ("model", SVC(probability=True, random_state=42))
+    ])
+
+
+def create_knn():
+    return Pipeline([
+        ("scaler", StandardScaler()),
+        ("model", KNeighborsClassifier())
+    ])
+
+
+def create_nb():
+    return GaussianNB()
+
+
+def create_random_forest():
+    return RandomForestClassifier(random_state=42)
+
+
+def create_gradient_boosting():
+    return GradientBoostingClassifier(random_state=42)
+
+
+def create_adaboost():
+    return AdaBoostClassifier(random_state=42)
+
+
+def create_extra_trees():
+    return ExtraTreesClassifier(random_state=42)
+
+
+MODEL_REGISTRY = {
+    "LR": {"name": "Logistic Regression", "creator": create_lr, "save_model": True},
+    "CART": {"name": "CART Decision Tree", "creator": create_cart, "save_model": True},
+    "SVM": {"name": "Support Vector Machine", "creator": create_svm, "save_model": True},
+    "KNN": {"name": "K-Nearest Neighbours", "creator": create_knn, "save_model": False},
+    "NB": {"name": "Gaussian Naive Bayes", "creator": create_nb, "save_model": True},
+    "RF": {"name": "Random Forest", "creator": create_random_forest, "save_model": True},
+    "GB": {"name": "Gradient Boosting", "creator": create_gradient_boosting, "save_model": True},
+    "ADA": {"name": "AdaBoost", "creator": create_adaboost, "save_model": True},
+    "ET": {"name": "Extra Trees", "creator": create_extra_trees, "save_model": True}
+}
+
+
+def create_model(model_name):
+    model_name = model_name.strip().upper()
+
+    if model_name not in MODEL_REGISTRY:
+        raise ValueError(
+            f"Unknown model '{model_name}'. "
+            f"Available models: {', '.join(MODEL_REGISTRY.keys())}"
+        )
+
+    return MODEL_REGISTRY[model_name]["creator"]()
 
 
 def modelTraining(
@@ -23,99 +99,22 @@ def modelTraining(
     target,
     model_name
 ):
-    """
-    Evaluate an ML algorithm using 10-fold stratified CV.
+    model_name = model_name.strip().upper()
 
-    LR, CART, SVM and NB are subsequently trained on the complete
-    dataset and saved as model files.
+    if model_name not in MODEL_REGISTRY:
+        raise ValueError(
+            f"Unknown model '{model_name}'. "
+            f"Available models: {', '.join(MODEL_REGISTRY.keys())}"
+        )
 
-    KNN is evaluated using 10-fold CV only; no separate final
-    training/model file is produced.
-
-    All performance information is written to JSON.
-    This module intentionally produces no console report.
-    """
-
-    # --------------------------------------------------------
-    # 1. Load preprocessed data
-    # --------------------------------------------------------
+    model_info = MODEL_REGISTRY[model_name]
 
     df = pd.read_csv(input_file)
 
     X = df[features]
     y = df[target]
 
-    # --------------------------------------------------------
-    # 2. Construct model pipeline
-    # --------------------------------------------------------
-
-    if model_name == "LR":
-
-        estimator = Pipeline([
-            ("scaler", StandardScaler()),
-            (
-                "model",
-                LogisticRegression(
-                    max_iter=1000,
-                    random_state=42
-                )
-            )
-        ])
-
-    elif model_name == "CART":
-
-        estimator = Pipeline([
-            (
-                "model",
-                DecisionTreeClassifier(
-                    criterion="gini",
-                    random_state=42
-                )
-            )
-        ])
-
-    elif model_name == "SVM":
-
-        estimator = Pipeline([
-            ("scaler", StandardScaler()),
-            (
-                "model",
-                SVC(
-                    probability=True,
-                    random_state=42
-                )
-            )
-        ])
-
-    elif model_name == "KNN":
-
-        estimator = Pipeline([
-            ("scaler", StandardScaler()),
-            (
-                "model",
-                KNeighborsClassifier(
-                    n_neighbors=5
-                )
-            )
-        ])
-
-    elif model_name == "NB":
-
-        estimator = Pipeline([
-            (
-                "model",
-                GaussianNB()
-            )
-        ])
-
-    else:
-        raise ValueError(
-            "Invalid model. Choose LR, CART, SVM, KNN or NB."
-        )
-
-    # --------------------------------------------------------
-    # 3. Configure 10-fold stratified cross-validation
-    # --------------------------------------------------------
+    estimator = create_model(model_name)
 
     cv = StratifiedKFold(
         n_splits=10,
@@ -131,10 +130,6 @@ def modelTraining(
         "roc_auc": "roc_auc"
     }
 
-    # --------------------------------------------------------
-    # 4. Cross-validation
-    # --------------------------------------------------------
-
     cv_start = time.perf_counter()
 
     cv_results = cross_validate(
@@ -143,103 +138,61 @@ def modelTraining(
         y,
         cv=cv,
         scoring=scoring,
+        return_train_score=False,
         n_jobs=-1
     )
 
-    cv_time = time.perf_counter() - cv_start
+    cv_end = time.perf_counter()
 
-    # --------------------------------------------------------
-    # 5. Build metric report
-    # --------------------------------------------------------
-
-    metrics = {}
-
-    for metric in scoring:
-        scores = cv_results[f"test_{metric}"]
-
-        metrics[metric] = {
-            "mean": float(scores.mean()),
-            "std": float(scores.std()),
-            "fold_scores": [
-                float(score)
-                for score in scores
+    performance = {
+        "model": model_info["name"],
+        "model_code": model_name,
+        "cross_validation": {
+            "method": "10-fold Stratified Cross Validation",
+            "folds": 10,
+            "random_state": 42
+        },
+        "metrics": {
+            metric: {
+                "mean": float(cv_results[f"test_{metric}"].mean()),
+                "std": float(cv_results[f"test_{metric}"].std())
+            }
+            for metric in scoring
+        },
+        "fold_scores": {
+            metric: [
+                float(x) for x in cv_results[f"test_{metric}"]
             ]
-        }
+            for metric in scoring
+        },
+        "cross_validation_time_seconds": cv_end - cv_start
+    }
 
-    # --------------------------------------------------------
-    # 6. KNN: evaluation only
-    # --------------------------------------------------------
-
-    if model_name == "KNN":
-
-        report = {
-            "model": model_name,
-            "dataset_size": int(len(df)),
-            "number_of_features": int(len(features)),
-            "cross_validation": {
-                "method": "Stratified K-Fold",
-                "number_of_folds": 10,
-                "shuffle": True,
-                "random_state": 42
-            },
-            "cross_validation_time_seconds": float(cv_time),
-            "training_time_seconds": None,
-            "model_saved": False,
-            "model_file": None,
-            "metrics": metrics
-        }
-
-    # --------------------------------------------------------
-    # 7. Final training for trainable models
-    # --------------------------------------------------------
-
-    else:
-
+    if model_info["save_model"]:
         training_start = time.perf_counter()
-
         estimator.fit(X, y)
+        training_end = time.perf_counter()
 
-        training_time = time.perf_counter() - training_start
-
-        # Save complete pipeline so scaling and model are preserved.
-        model_package = {
-            "model": estimator,
-            "features": features,
-            "target": target,
-            "model_name": model_name
-        }
-
-        joblib.dump(
-            model_package,
-            model_output_file
+        performance["training_time_seconds"] = (
+            training_end - training_start
         )
 
-        report = {
-            "model": model_name,
-            "dataset_size": int(len(df)),
-            "number_of_features": int(len(features)),
-            "cross_validation": {
-                "method": "Stratified K-Fold",
-                "number_of_folds": 10,
-                "shuffle": True,
-                "random_state": 42
-            },
-            "cross_validation_time_seconds": float(cv_time),
-            "training_time_seconds": float(training_time),
-            "model_saved": True,
-            "model_file": model_output_file,
-            "metrics": metrics
-        }
+        if model_output_file is not None:
+            model_directory = os.path.dirname(model_output_file)
 
-    # --------------------------------------------------------
-    # 8. Save JSON performance report
-    # --------------------------------------------------------
+            if model_directory:
+                os.makedirs(model_directory, exist_ok=True)
+
+            joblib.dump(estimator, model_output_file)
+    else:
+        performance["training_time_seconds"] = None
+
+    performance_directory = os.path.dirname(performance_output_file)
+
+    if performance_directory:
+        os.makedirs(performance_directory, exist_ok=True)
 
     with open(performance_output_file, "w") as file:
-        json.dump(
-            report,
-            file,
-            indent=4
-        )
+        json.dump(performance, file, indent=4)
 
-    return report
+    return performance
