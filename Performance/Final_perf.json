@@ -112,8 +112,8 @@
             0.9596457527048787
         ]
     },
-    "cross_validation_time_seconds": 9.021767054997326,
-    "training_time_seconds": 3.035771057002421,
+    "cross_validation_time_seconds": 9.374013052998635,
+    "training_time_seconds": 3.054737442995247,
     "final_visualisations": {
         "graphs_directory": "/mnt/study/Likhith/CSE/5-Sem/ML/Project/Graphs/Final Evaluation",
         "roc_auc": 0.9646091307066916,
