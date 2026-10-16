@@ -1,0 +1,13 @@
+TEST SET REPORT (threshold = 0.200)
+============================================================
+                precision    recall  f1-score   support
+
+FALSE POSITIVE     0.9866    0.7573    0.8569       585
+     CONFIRMED     0.7394    0.9853    0.8449       409
+
+      accuracy                         0.8511       994
+     macro avg     0.8630    0.8713    0.8509       994
+  weighted avg     0.8849    0.8511    0.8519       994
+
+Confusion matrix: TN=443 FP=142 FN=6 TP=403
+ROC-AUC: 0.9731   MCC: 0.7343
