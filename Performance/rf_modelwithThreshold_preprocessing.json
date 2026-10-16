@@ -1,0 +1,54 @@
+{
+    "steps": [
+        {
+            "step": "Load CSV (skip '#' metadata lines)",
+            "rows_after": 9564
+        },
+        {
+            "step": "Feature selection",
+            "columns_kept": [
+                "koi_depth",
+                "koi_duration",
+                "koi_impact",
+                "koi_model_snr",
+                "koi_max_mult_ev",
+                "koi_srad",
+                "koi_smass",
+                "koi_steff",
+                "koi_bin_oedp_sig",
+                "koi_disposition"
+            ],
+            "rows_after": 9564
+        },
+        {
+            "step": "Remove CANDIDATE rows (label unknown)",
+            "rows_removed": 1977,
+            "rows_after": 7587
+        },
+        {
+            "step": "Remove rows with missing feature values",
+            "missing_per_column": {
+                "koi_depth": 259,
+                "koi_duration": 0,
+                "koi_impact": 259,
+                "koi_model_snr": 259,
+                "koi_max_mult_ev": 681,
+                "koi_srad": 259,
+                "koi_smass": 259,
+                "koi_steff": 259,
+                "koi_bin_oedp_sig": 910
+            },
+            "rows_removed": 962,
+            "rows_after": 6625
+        },
+        {
+            "step": "Encode target (FALSE POSITIVE=0, CONFIRMED=1)",
+            "class_counts": {
+                "0": 3895,
+                "1": 2730
+            },
+            "rows_after": 6625
+        }
+    ],
+    "note": "No scaling: Random Forest is scale-invariant."
+}
